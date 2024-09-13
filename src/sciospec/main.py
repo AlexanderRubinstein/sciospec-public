@@ -56,7 +56,9 @@ class Device:
 
     def assert_execution(self):
         ack_id = self.read_ack()
-        assert ack_id == "83", "Command has not been executed"
+        if ack_id != "83":
+            raise Exception("Command has not been executed")
+        # assert ack_id == "83", "Command has not been executed"
 
     def get_device_id(self):
         # ??
