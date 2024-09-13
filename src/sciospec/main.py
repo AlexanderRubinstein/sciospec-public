@@ -78,6 +78,7 @@ class Device:
         # D1 00 D1
         # Command to send, as a byte array (example: [0x01, 0x02, 0x03])
         cmd = bytes([tag_byte, 0x00, tag_byte])
+        self.read_ack()
 
         # Write the data to the device
         self.write_data_to_device(cmd)
@@ -104,9 +105,10 @@ class Device:
 
     def write_data_to_device(self, cmd):
         # Print the command bytes in hexadecimal format
-        for byte in cmd:
-            print(f"{byte:02X} ", end="")
-        print()  # Newline after printing all bytes
+        # for byte in cmd:
+        #     print(f"{byte:02X} ", end="")
+        # print()  # Newline after printing all bytes
+        print(decode_bytes(cmd))
 
         # Write the bytes to the serial port
         self.connection.write(cmd)
