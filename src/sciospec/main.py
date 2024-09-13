@@ -90,10 +90,8 @@ class Device:
             raise Exception("Command has not been executed")
         # assert ack_id == "83", "Command has not been executed"
 
-    def get_device_id(self):
-        cmd_tag = "D1"
-        # tag_byte = to_byte(cmd_tag)
-        data_bytes = ["00"]
+    def get_response(self, cmd_tag, data_bytes):
+        # data_bytes = ["00"]
         # ??
         # 0xD1 0x00 0x00 0xD1
         # D1 00 D1
@@ -110,10 +108,46 @@ class Device:
         # ack = self.read_ack()
         # assert ack
         # get response
-        device_id = decode_bytes(
+        response = decode_bytes(
             self.read_data_buffer(RESPONSE_LENGTH_DICT[cmd_tag])
         )
-        return device_id
+        return response
+
+
+    def get_device_id(self):
+        # cmd_tag = "D1"
+        # # tag_byte = to_byte(cmd_tag)
+        # data_bytes = ["00"]
+        # # ??
+        # # 0xD1 0x00 0x00 0xD1
+        # # D1 00 D1
+        # # Command to send, as a byte array (example: [0x01, 0x02, 0x03])
+        # # cmd = bytes([tag_byte, 0x00, tag_byte]) ??
+        # cmd = make_cmd(cmd_tag, data_bytes)
+        # # cmd = bytearray([tag_byte, 0x00, tag_byte])
+        # # self.read_ack()
+
+        # # Write the data to the device
+        # self.write_data_to_device(cmd)
+        # # get ack
+        # self.assert_execution()
+        # # ack = self.read_ack()
+        # # assert ack
+        # # get response
+        # device_id = decode_bytes(
+        #     self.read_data_buffer(RESPONSE_LENGTH_DICT[cmd_tag])
+        # )
+        # return device_id
+        return self.get_response("D1", ["00"])
+
+    def get_firmware_id(self):
+        return self.get_response("D2", ["00"])
+
+    # get freqeuncy list: Syntax get: [CT] 01 04 [CT] - response is split in 252 byte packages
+
+    def get_device_id(self):
+
+        self.get_response("D1", ["00"])
 
     def read_data_buffer(self, bytes_to_read):
         buffer = bytearray()  # Create a buffer to store the incoming data
@@ -202,8 +236,10 @@ class Device:
 
 def main():
     device = Device()
-    device_id = device.get_device_id()
-    print("Device ID: ", device_id)
+    # device_id = device.get_device_id()
+    # print("Device ID: ", device_id)
+    device_firmware_id = device.get_firmware_id()
+    print("Firmware ID: ", device_firmware_id)
 
 
 if __name__ == "__main__":
