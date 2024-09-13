@@ -19,6 +19,16 @@ ACK_DICT = {
 }
 
 
+RESPONSE_LENGTH_DICT = {
+    "D1": 7,
+}
+
+def to_byte(hex_str):
+    # hex_str = "D1"
+    byte_value = int(hex_str, 16)
+    return byte_value
+
+
 def decode_bytes(data):
     res = []
     for byte in data:
@@ -61,11 +71,13 @@ class Device:
         # assert ack_id == "83", "Command has not been executed"
 
     def get_device_id(self):
+        cmd_tag = "D1"
+        tag_byte = to_byte(cmd_tag)
         # ??
         # 0xD1 0x00 0x00 0xD1
         # D1 00 D1
         # Command to send, as a byte array (example: [0x01, 0x02, 0x03])
-        cmd = bytes([0x01, 0x02, 0x03])
+        cmd = bytes([tag_byte, 0x00, tag_byte])
 
         # Write the data to the device
         self.write_data_to_device(cmd)
@@ -74,7 +86,9 @@ class Device:
         # ack = self.read_ack()
         # assert ack
         # get response
-        device_id = decode_bytes(self.read_data_buffer(4))
+        device_id = decode_bytes(
+            self.read_data_buffer(RESPONSE_LENGTH_DICT[cmd_tag])
+        )
         return device_id
 
     def read_data_buffer(self, bytes_to_read):
