@@ -37,6 +37,20 @@ def decode_bytes(data):
     return res
 
 
+def make_cmd(cmd_tag, data_bytes):
+    cmd_tag_byte = to_byte(cmd_tag)
+    return bytes(
+            [
+                cmd_tag_byte,
+                to_byte(str(len(data_bytes)))
+            ]
+        +
+            [to_byte(byte) for byte in data_bytes]
+        +
+            [cmd_tag_byte]
+    )
+
+
 class Device:
 
     def __init__(self):
@@ -58,6 +72,7 @@ class Device:
             ack_id = None
         else:
             # print()
+            assert len(decoded_buffer) == 4
             ack_id = str(decoded_buffer[2])
             if verbose:
                 print(ACK_DICT[ack_id])
@@ -77,14 +92,16 @@ class Device:
 
     def get_device_id(self):
         cmd_tag = "D1"
-        tag_byte = to_byte(cmd_tag)
+        # tag_byte = to_byte(cmd_tag)
+        data_bytes = ["00"]
         # ??
         # 0xD1 0x00 0x00 0xD1
         # D1 00 D1
         # Command to send, as a byte array (example: [0x01, 0x02, 0x03])
-        cmd = bytes([tag_byte, 0x00, tag_byte])
+        # cmd = bytes([tag_byte, 0x00, tag_byte]) ??
+        cmd = make_cmd(cmd_tag, data_bytes)
         # cmd = bytearray([tag_byte, 0x00, tag_byte])
-        self.read_ack()
+        # self.read_ack()
 
         # Write the data to the device
         self.write_data_to_device(cmd)
