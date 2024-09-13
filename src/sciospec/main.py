@@ -10,7 +10,7 @@ import sys
 def decode_bytes(data):
     res = []
     for byte in data:
-        res.append(f"{byte:02X}", end=" ")
+        res.append(f"{byte:02X}")
     return res
 
 
