@@ -83,7 +83,7 @@ class Device:
         # D1 00 D1
         # Command to send, as a byte array (example: [0x01, 0x02, 0x03])
         cmd = bytes([tag_byte, 0x00, tag_byte])
-        # self.read_ack()
+        self.read_ack()
 
         # Write the data to the device
         self.write_data_to_device(cmd)
