@@ -56,7 +56,7 @@ class Device:
 
     def assert_execution(self):
         ack_id = self.read_ack()
-        assert ack == "83"
+        assert ack_id == "83"
 
     def get_device_id(self):
         # ??
