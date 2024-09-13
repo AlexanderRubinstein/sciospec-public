@@ -20,6 +20,7 @@ ACK_DICT = {
 
 
 RESPONSE_LENGTH_DICT = {
+    "Ack": 4,
     "D1": 7,
 }
 
@@ -43,7 +44,7 @@ class Device:
 
     def read_ack(self, verbose=True):
         # Read 4 bytes from the serial port
-        read_buffer = self.read_data_buffer(4)
+        read_buffer = self.read_data_buffer(RESPONSE_LENGTH_DICT["Ack"])
 
         # Print the ACK frame in hexadecimal format
         print("ACK-Frame: ", end="")
@@ -52,10 +53,14 @@ class Device:
         # print()
         # print(decode_bytes(read_buffer))
         decoded_buffer = decode_bytes(read_buffer)
-        # print()
-        ack_id = str(decoded_buffer[2])
-        if verbose:
-            print(ACK_DICT[ack_id])
+        if len(read_buffer) == 0:
+            print("No acknowledgement received")
+            ack_id = None
+        else:
+            # print()
+            ack_id = str(decoded_buffer[2])
+            if verbose:
+                print(ACK_DICT[ack_id])
         return ack_id
 
         # # Check if the third byte (index 2) is 0x83
@@ -78,7 +83,7 @@ class Device:
         # D1 00 D1
         # Command to send, as a byte array (example: [0x01, 0x02, 0x03])
         cmd = bytes([tag_byte, 0x00, tag_byte])
-        self.read_ack()
+        # self.read_ack()
 
         # Write the data to the device
         self.write_data_to_device(cmd)
