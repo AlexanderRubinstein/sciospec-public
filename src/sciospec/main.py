@@ -7,6 +7,18 @@ import sys
 #     return 5 # TODO: Implement logic to get COM number
 
 
+ACK_DICT = {
+    "01": "Frame-Not-Acknowledge: Incorrect syntax",
+    "02": "Timeout: Communication-timeout (less data than expected)",
+    "04": "Wake-Up Message: System boot ready",
+    "11": "TCP-Socket: Valid TCP client-socket connection",
+    "81": "Not-Acknowledge: Command has not been executed",
+    "82": "Not-Acknowledge: Command could not be recognized",
+    "83": "Command-Acknowledge: Command has been executed successfully",
+    "84": "System-Ready Message: System is operational and ready to receive data"
+}
+
+
 def decode_bytes(data):
     res = []
     for byte in data:
@@ -19,7 +31,7 @@ class Device:
     def __init__(self):
         self.connection = self._get_connection()
 
-    def read_ack(self):
+    def read_ack(self, verbose=True):
         # Read 4 bytes from the serial port
         read_buffer = self.read_data_buffer(4)
 
@@ -28,14 +40,23 @@ class Device:
         # for byte in read_buffer:
         #     print(f"{byte:02X} ", end="")
         # print()
-        print(decode_bytes(read_buffer))
-        print()
+        # print(decode_bytes(read_buffer))
+        decoded_buffer = decode_bytes(read_buffer)
+        # print()
+        ack_id = str(decoded_buffer[2])
+        if verbose:
+            print(ACK_DICT[ack_id])
+        return ack_id
 
-        # Check if the third byte (index 2) is 0x83
-        if read_buffer[2] == 0x83:
-            return True  # ACK
-        else:
-            return False  # Not ACK
+        # # Check if the third byte (index 2) is 0x83
+        # if ack_id == "83":
+        #     return True  # ACK
+        # else:
+        #     return False  # Not ACK
+
+    def assert_execution(self):
+        ack_id = self.read_ack()
+        assert ack == "83"
 
     def get_device_id(self):
         # ??
@@ -47,8 +68,9 @@ class Device:
         # Write the data to the device
         self.write_data_to_device(cmd)
         # get ack
-        ack = self.read_ack()
-        assert ack
+        self.assert_execution()
+        # ack = self.read_ack()
+        # assert ack
         # get response
         device_id = decode_bytes(self.read_data_buffer(4))
         return device_id
