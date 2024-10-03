@@ -27,17 +27,18 @@ SET_SETUP_TAG = "B6"
 
 RESPONSE_LENGTH_DICT = {
     "Ack": 4,
-    "D1": 7,
-    # "B6": ??,
+    "D1": 7
 }
 
 
 HARDCODED_LENS = {
     SET_SETUP_TAG: 16 # they require 16 in manual, even though there are at least 21 bytes by default: 5 floats + 1 bool
 }
+RESULT_FRAME_SIZE = 14
 
 
 # config consts
+SETUP_KEY = "setup"
 FREQ_LIST_KEY = "freq_list_params"
 AMPLITUDE_KEY = "amplitude"
 PRECISION_KEY = "precision"
@@ -45,16 +46,81 @@ START_FREQ_KEY = "start_freq"
 END_FREQ_KEY = "end_freq"
 FREQ_COUNT_KEY = "freq_count"
 FREQ_SCALE_KEY = "freq_scale"
+FE_KEY = "frontend_settings"
+MES_MODE_KEY = "measurement_mode"
+MES_CHNL_KEY = "measurement_channel"
+CURR_RANGE_KEY = "current_range"
+VOL_RANGE_KEY = "voltage_range"
 DUMMY_CONFIG = {
-    FREQ_LIST_KEY: {
-        "start_freq": 100,
-        "end_freq": 1000,
-        "freq_count": 80,
-        "freq_scale": 1 # Log
+    SETUP_KEY: {
+        FREQ_LIST_KEY: {
+            "start_freq": 100,
+            "end_freq": 1000,
+            "freq_count": 80,
+            "freq_scale": "Log" # Log
+        },
+        PRECISION_KEY: 1,
+        AMPLITUDE_KEY: 0.1, # V
     },
-    PRECISION_KEY: 1,
-    AMPLITUDE_KEY: 0.1, # V
+    FE_KEY:
+        {
+            MES_MODE_KEY: "4PT",
+            MES_CHNL_KEY: "BNC",
+            CURR_RANGE_KEY: "auto",
+            VOL_RANGE_KEY: None
+        }
 }
+
+
+# writeDataToDevice(handle, cmd, numberOfBytes);
+#     readAck(handle);
+# printf("\n");
+# cmd[3] = 0x02;
+# cmd[4] = 0x01;
+# cmd[5] = 0x01;
+# writeDataToDevice(handle, cmd, numberOfBytes);
+# readAck(handle);
+# printf("\n");
+
+# $/ /$ mode $=4 \mathrm{Pt}$ measurement
+# //add channel: Channel 1 (BNC),
+# //1000hm Range,
+
+FREQ_SCALE_DICT = {
+    "Lin": "00",
+    "Log": "01"
+}
+
+
+MEASUREMENT_MODE_DICT = {
+    "2PT": "01",  # 2 point configuration
+    "3PT": "03",  # 3 point configuration
+    "4PT": "02",  # 4 point configuration
+}
+
+
+MEASUREMENT_CHANNEL_DICT = {
+    "BNC": "01",  # BNC Port (ISX-3mini: Port 1)
+    "EXT1": "02",  # ExtensionPort
+    "EXT2": "03",  # ExtensionPort2 (ISX-3mini: Port 2, ISX-3: optional, InternalMux)
+}
+
+
+CURRENT_RANGE_SETTINGS_DICT = {
+    "auto": "00",  # autoranging
+    "100": "01",  # ± 10 mA
+    "10k": "02",  # ± 100 μA
+    "1M": "04",  # ± 1 μA
+    "100M": "06"  # ± 10 nA
+}
+
+
+VOLTAGE_RANGE_SETTINGS_DICT = {
+    "auto": "00",  # autoranging
+    "1": "01",  # ± 1V (default)
+    "0.09": "02",  # ± 0.09V
+}
+
 
 def to_byte(hex_str):
     # hex_str = "D1"
@@ -87,13 +153,24 @@ def make_cmd(cmd_tag, data_bytes, hardcoded_len=None):
     )
 
 
-def float_as_bytes(float_val):
+def float_as_byte_list(float_val):
     # bytes_as_list = []
     packed_value = struct.pack('>f', float_val)  # '>f' is for big-endian float
     # for byte in packed_value:
     #     bytes_as_list.append(byte)
     return decode_bytes(packed_value)
     # return bytes_as_list
+
+
+def read_float_from_byte_list(byte_list):
+    return struct.unpack('>f', bytes(byte_list))[0]
+
+
+def cfg_not_found(cfg_key, config):
+    return (
+        f"Key \"{cfg_key}\" not found in "
+        f"the given config:\n{pretty_json(config)}"
+    )
 
 
 def get_with_assert(container, key, error_msg=None):
@@ -138,6 +215,10 @@ class Device:
 
     def __init__(self):
         self.connection = self._get_connection()
+        self.freq_count = None
+
+    def close(self):
+        self.connection.close()
 
     def read_ack(self, verbose=True):
         # Read 4 bytes from the serial port
@@ -183,15 +264,14 @@ class Device:
         self,
         cmd_tag,
         data_bytes,
-        has_response=True,
+        has_response=False,
         hardcoded_len=None
     ):
         # data_bytes = ["00"]
-        # ??
         # 0xD1 0x00 0x00 0xD1
         # D1 00 D1
         # Command to send, as a byte array (example: [0x01, 0x02, 0x03])
-        # cmd = bytes([tag_byte, 0x00, tag_byte]) ??
+        # cmd = bytes([tag_byte, 0x00, tag_byte])
         cmd = make_cmd(cmd_tag, data_bytes, hardcoded_len=hardcoded_len)
         # cmd = bytearray([tag_byte, 0x00, tag_byte])
         # self.read_ack()
@@ -212,14 +292,16 @@ class Device:
         self.assert_execution()
         return response
 
+    # TODO(Alex | 03.10.2024): make function below working
     def get_firmware_id(self):
-        return self.exec_cmd("D2", ["00"])
+        return self.exec_cmd("D2", ["00"], has_response=True)
 
     # get freqeuncy list: Syntax get: [CT] 01 04 [CT] - response is split in 252 byte packages
 
+    # TODO(Alex | 03.10.2024): make function below working
     def get_device_id(self):
 
-        self.exec_cmd("D1", [])
+        self.exec_cmd("D1", [], has_response=True)
 
     def reset_setup(self):
         '''
@@ -227,7 +309,7 @@ class Device:
         and an empty setup is initialized.
         '''
 
-        self.exec_cmd(SET_SETUP_TAG, ["01"], has_response=False)
+        self.exec_cmd(SET_SETUP_TAG, ["01"])
 
     def set_setup(self, config):
 
@@ -250,13 +332,8 @@ class Device:
                 cfg_not_found(PRECISION_KEY, config)
             )
 
-            return freq_list_params, amplitude, precision
 
-        def cfg_not_found(cfg_key, config):
-            return (
-                f"Key \"{cfg_key}\" not found in "
-                f"the given config:\n{pretty_json(config)}"
-            )
+            return freq_list_params, amplitude, precision
 
         def set_freq_list(
             freq_list_params,
@@ -290,31 +367,39 @@ class Device:
                     cfg_not_found(FREQ_SCALE_KEY, freq_list_params)
                 )
 
+                freq_scale = get_with_assert(
+                    FREQ_SCALE_DICT,
+                    freq_scale,
+                    f"Frequency scale \"{freq_scale}\" not supported; "
+                    f"allowed values are: {list(FREQ_SCALE_DICT.keys())}"
+                )
+
                 return start_freq, end_freq, freq_count, freq_scale
 
             start_freq, stop_freq, count, scale = parse_freq_list(freq_list_params)
 
+            self.freq_count = count
+
             data_bytes = (
                     ["03"]
                 +
-                    float_as_bytes(start_freq)
+                    float_as_byte_list(start_freq)
                 +
-                    float_as_bytes(stop_freq)
+                    float_as_byte_list(stop_freq)
                 +
-                    float_as_bytes(count)
+                    float_as_byte_list(count)
                 # +
-                #     float_as_bytes(scale)
+                #     float_as_byte_list(scale)
                 +
                     [str(scale)]
                 +
-                    float_as_bytes(precision)
+                    float_as_byte_list(precision)
                 +
-                    float_as_bytes(amplitude)
+                    float_as_byte_list(amplitude)
             )
             self.exec_cmd(
                 SET_SETUP_TAG,
                 data_bytes,
-                has_response=False,
                 hardcoded_len=HARDCODED_LENS[SET_SETUP_TAG]
             )
 
@@ -323,23 +408,163 @@ class Device:
             f"\n{pretty_json(config)}"
         )
 
-        freq_list_params, amplitude, precision = parse_setup_config(config)
+        setup_config = get_with_assert(
+            config,
+            [SETUP_KEY],
+            cfg_not_found(SETUP_KEY, config)
+        )
+
+        freq_list_params, amplitude, precision = parse_setup_config(setup_config)
 
         # if freq_list_params is not None:
+        self.reset_setup()
         set_freq_list(freq_list_params, precision, amplitude)
 
+    # TODO(Alex | 03.10.2024): test function below
     def set_frontend_settings(self, config):
 
         def clear_channel():
             self.exec_cmd(
                 SET_FE_TAG,
-                ["255", "255", "255", "0"],
-                has_response=False,
-                hardcoded_len=3
+                ["03", "255", "255", "255"],
+                # hardcoded_len=3
             )
+
+        def parse_frontend_config(fe_settings):
+            mes_mode = get_with_assert(
+                fe_settings,
+                [MES_MODE_KEY],
+                cfg_not_found(MES_MODE_KEY, fe_settings)
+            )
+            mes_chl = get_with_assert(
+                fe_settings,
+                [MES_CHNL_KEY],
+                cfg_not_found(MES_CHNL_KEY, fe_settings)
+            )
+            curr_range = get_with_assert(
+                fe_settings,
+                [CURR_RANGE_KEY],
+                cfg_not_found(CURR_RANGE_KEY, fe_settings)
+            )
+            vol_range = get_with_assert(
+                fe_settings,
+                [VOL_RANGE_KEY],
+                cfg_not_found(VOL_RANGE_KEY, fe_settings)
+            )
+            return mes_mode, mes_chl, curr_range, vol_range
+
         clear_channel()
+
+        fe_settings = get_with_assert(
+            config,
+            [FE_KEY],
+            cfg_not_found(FE_KEY, config)
+        )
+
+        mes_mode, mes_chl, curr_range, vol_range = parse_frontend_config(fe_settings)
+        data_bytes = [mes_mode, mes_chl, curr_range]
+        if vol_range is not None:
+            data_bytes.append(vol_range)
+            self.exec_cmd(
+                SET_FE_TAG,
+                data_bytes,
+                # hardcoded_len=3
+            )
+        # if vol_range is None:
+        #     self.exec_cmd(
+        #         SET_FE_TAG,
+        #         ["03", mes_mode, mes_chl, curr_range],
+        #         has_response=False,
+        #         # hardcoded_len=3
+        #     )
+        # else:
+        #     self.exec_cmd(
+        #         SET_FE_TAG,
+        #         ["04", mes_mode, mes_chl, curr_range, vol_range],
+        #         has_response=False,
+        #         # hardcoded_len=3
+        #     )
+
         # self.set_channel()
 
+    # TODO(Alex | 03.10.2024): test function below
+    def start_measurement(self):
+        self.exec_cmd("B8", ["01", "00", "00"])
+
+    # TODO(Alex | 03.10.2024): test function below
+    def stop_measurement(self):
+        self.exec_cmd("B8", ["00", "00", "00"])
+
+    # TODO(Alex | 03.10.2024): test function below
+    def read_measurement_result(self):
+        """
+        Format of the measurement result frame:
+
+        If time stamp and current range are disabled (see command 0x97 and 0x98):
+            [CT] 0A [ID] [Real part] [Imaginary part] [CT]
+        Else if time stamp in ms is enabled (see command 0x97 and 0x98):
+            [CT] 0E [ID] [Time stamp] [Real part] [Imaginary part] [CT]
+        Else if time stamp in μs is enabled (see command 0x97 and 0x98)
+            [CT] 0F [ID] [Time stamp] [Real part] [Imaginary part] [CT]
+        Else if current range is enabled (see command 0x97 and 0x98)
+            [CT] 0B [ID] [Current Range] [Real part] [Imaginary part] [CT]
+        Else if time stamp and current range are enabled (see command 0x97 and 0x98)
+            [CT] 0F [ID] [Time stamp] [Current Range] [Real part] [Imaginary part] [CT]
+        """
+
+        def parse_result_frame(frame):
+
+            # TODO(Alex | 03.10.2024): check correctness in practice, because manual and example contradict to each other
+            assert len(frame) == RESULT_FRAME_SIZE
+            ch = frame[2]
+            id_ = (frame[3] << 8) + frame[4]
+
+            # TODO(Alex | 03.10.2024): avoid double conversions from bytes to string and back
+            re = read_float_from_byte_list(frame[5:9])
+            im = read_float_from_byte_list(frame[9:13])
+            return ch, id_, re, im
+
+        assert self.freq_count is not None, \
+            "Called read_measurement_result before set_setup"
+
+        for _ in range(self.freq_count):
+            cur_frame = decode_bytes(self.read_data_buffer(RESULT_FRAME_SIZE))
+            print("cur_frame", cur_frame) # tmp
+            parsed_frame = parse_result_frame(cur_frame)
+            print(parsed_frame)
+        # assert RESULT_FRAME_SIZE * self.frec_count < MAX_BYTE_RESULT * 8
+        # readBuffer = malloc(14);
+
+# 4Byte Im
+# //3Byte Framing, 2Byte idNumber, 4Byte RE,
+# byte j;
+# byte i;
+# UINT8 ch;
+# UINT16 id;
+# UINT32 tmp32;
+# float re, im;
+# for(j=0; j<numberOfSpecs; j++){
+# printf("Spec#%i:\n", j+1); printf("ch\tid\tre\tim\n"); for(i=0; i<frequencyCount;i++){
+#             readData(handle, readBuffer, 14);
+#             ch = readBuffer[2];
+#             id = (readBuffer[3]<<8) + readBuffer[4];
+#             tmp32 = (readBuffer[5]<<24) + (readBuffer[6]<<16) +
+# (readBuffer[7]<<8) + (readBuffer[8]);
+#             re = *(float*)&tmp32;
+#             tmp32 = (readBuffer[9]<<24) + (readBuffer[10]<<16) +
+# (readBuffer[11]<<8) + (readBuffer[12]);
+#             im = *(float*)&tmp32;
+#             printf("%i\t%i\t%f\t%f\n", ch, id, re, im);
+# }
+#         printf("\n");
+#     }
+
+    # TODO(Alex | 03.10.2024): test function below
+    def run_measurement(self):
+        self.start_measurement()
+        result = self.read_measurement_result()
+        self.stop_measurement()
+        return result
 
     def read_data_buffer(self, bytes_to_read):
         buffer = bytearray()  # Create a buffer to store the incoming data
@@ -387,7 +612,6 @@ class Device:
 
 
 # def get_device_id():
-#     # ??
 #     # 0xD1 0x00 0x00 0xD1
 #     # D1 00 D1
 #     # Command to send, as a byte array (example: [0x01, 0x02, 0x03])
@@ -434,9 +658,15 @@ def main():
     # device_firmware_id = device.get_firmware_id()
     # print("Firmware ID: ", device_firmware_id)
 
-    device.reset_setup()
+    # device.reset_setup()
+
+    # TODO(Alex | 03.10.2024): read config from given yaml path
     device.set_setup(DUMMY_CONFIG)
     device.set_frontend_settings(DUMMY_CONFIG)
+    result = device.run_measurement()
+    # TODO(Alex | 03.10.2024): save result in output csv specified in args
+    print("Result: ", result)
+    device.close()
 
 
 if __name__ == "__main__":
