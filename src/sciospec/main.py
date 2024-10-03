@@ -337,7 +337,7 @@ class Device:
                 has_response=False,
                 hardcoded_len=3
             )
-        self.clear_channel()
+        clear_channel()
         # self.set_channel()
 
 
