@@ -149,6 +149,14 @@ class Device:
 
         self.get_response("D1", ["00"])
 
+    def reset_setup(self):
+        '''
+        This option resets the currently configured setup
+        and an empty setup is initialized.
+        '''
+
+        self.get_response("B6", ["01"])
+
     def read_data_buffer(self, bytes_to_read):
         buffer = bytearray()  # Create a buffer to store the incoming data
 
@@ -165,8 +173,8 @@ class Device:
         # for byte in cmd:
         #     print(f"{byte:02X} ", end="")
         # print()  # Newline after printing all bytes
-        print(decode_bytes(cmd))
-        print("cmd as bytes", cmd)
+        print("Writing this cmd as bytes to device", cmd)
+        print("Its decoded version", decode_bytes(cmd))
 
         # Write the bytes to the serial port
         self.connection.write(cmd)
@@ -238,8 +246,9 @@ def main():
     device = Device()
     # device_id = device.get_device_id()
     # print("Device ID: ", device_id)
-    device_firmware_id = device.get_firmware_id()
-    print("Firmware ID: ", device_firmware_id)
+    # device_firmware_id = device.get_firmware_id()
+    # print("Firmware ID: ", device_firmware_id)
+    device.reset_setup()
 
 
 if __name__ == "__main__":
