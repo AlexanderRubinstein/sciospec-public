@@ -74,11 +74,12 @@ def make_cmd(cmd_tag, data_bytes):
 
 
 def float_as_bytes(float_val):
-    bytes_as_list = []
+    # bytes_as_list = []
     packed_value = struct.pack('>f', float_val)  # '>f' is for big-endian float
-    for byte in packed_value:
-        bytes_as_list.append(byte)
-    return bytes_as_list
+    # for byte in packed_value:
+    #     bytes_as_list.append(byte)
+    return decode_bytes(packed_value)
+    # return bytes_as_list
 
 
 def get_with_assert(container, key, error_msg=None):
