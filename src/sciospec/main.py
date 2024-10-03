@@ -73,9 +73,12 @@ def make_cmd(cmd_tag, data_bytes):
     )
 
 
-def float_as_4_bytes(float_val):
+def float_as_bytes(float_val):
+    bytes_as_list = []
     packed_value = struct.pack('>f', float_val)  # '>f' is for big-endian float
-    return packed_value
+    for byte in packed_value:
+        bytes_as_list.append(byte)
+    return bytes_as_list
 
 
 def get_with_assert(container, key, error_msg=None):
@@ -293,21 +296,26 @@ class Device:
             data_bytes = (
                     ["03"]
                 +
-                    float_as_4_bytes(start_freq)
+                    float_as_bytes(start_freq)
                 +
-                    float_as_4_bytes(stop_freq)
+                    float_as_bytes(stop_freq)
                 +
-                    float_as_4_bytes(count)
+                    float_as_bytes(count)
                 # +
-                #     float_as_4_bytes(scale)
+                #     float_as_bytes(scale)
                 +
                     [str(scale)]
                 +
-                    float_as_4_bytes(precision)
+                    float_as_bytes(precision)
                 +
-                    float_as_4_bytes(amplitude)
+                    float_as_bytes(amplitude)
             )
             self.exec_cmd("B6", data_bytes, has_response=False)
+
+        print(
+            f"Setting up the device with the following configuration:"
+            f"\n{pretty_json(config)}"
+        )
 
         freq_list_params, amplitude, precision = parse_setup_config(config)
 
