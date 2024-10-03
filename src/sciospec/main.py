@@ -72,7 +72,7 @@ def make_cmd(cmd_tag, data_bytes, hardcoded_len=None):
     if hardcoded_len is not None:
         data_len = hardcoded_len
     else:
-        data_len = len(data_bytes) - 1 # without the first technical byte
+        data_len = len(data_bytes)
     cmd_tag_byte = to_byte(cmd_tag)
     return bytes(
             [
@@ -169,6 +169,9 @@ class Device:
     def assert_execution(self):
         ack_id = self.read_ack()
 
+        if ack_id is None:
+            raise Exception("No acknowledgement received")
+
         ack = ACK_DICT[ack_id]
 
         if ack_id not in ["81", "83"]:
@@ -233,7 +236,7 @@ class Device:
         #     self.read_data_buffer(RESPONSE_LENGTH_DICT[cmd_tag])
         # )
         # return device_id
-        return self.exec_cmd("D1", ["00"])
+        return self.exec_cmd("D1", [])
 
     def get_firmware_id(self):
         return self.exec_cmd("D2", ["00"])
