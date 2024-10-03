@@ -22,6 +22,7 @@ ACK_DICT = {
 RESPONSE_LENGTH_DICT = {
     "Ack": 4,
     "D1": 7,
+    # "B6": ??,
 }
 
 def to_byte(hex_str):
@@ -90,7 +91,7 @@ class Device:
             raise Exception("Command has not been executed")
         # assert ack_id == "83", "Command has not been executed"
 
-    def get_response(self, cmd_tag, data_bytes):
+    def exec_cmd(self, cmd_tag, data_bytes, has_response=True):
         # data_bytes = ["00"]
         # ??
         # 0xD1 0x00 0x00 0xD1
@@ -108,9 +109,12 @@ class Device:
         # ack = self.read_ack()
         # assert ack
         # get response
-        response = decode_bytes(
-            self.read_data_buffer(RESPONSE_LENGTH_DICT[cmd_tag])
-        )
+        if has_response:
+            response = decode_bytes(
+                self.read_data_buffer(RESPONSE_LENGTH_DICT[cmd_tag])
+            )
+        else:
+            response = None
         return response
 
 
@@ -138,16 +142,16 @@ class Device:
         #     self.read_data_buffer(RESPONSE_LENGTH_DICT[cmd_tag])
         # )
         # return device_id
-        return self.get_response("D1", ["00"])
+        return self.exec_cmd("D1", ["00"])
 
     def get_firmware_id(self):
-        return self.get_response("D2", ["00"])
+        return self.exec_cmd("D2", ["00"])
 
     # get freqeuncy list: Syntax get: [CT] 01 04 [CT] - response is split in 252 byte packages
 
     def get_device_id(self):
 
-        self.get_response("D1", ["00"])
+        self.exec_cmd("D1", ["00"])
 
     def reset_setup(self):
         '''
@@ -155,7 +159,7 @@ class Device:
         and an empty setup is initialized.
         '''
 
-        self.get_response("B6", ["01"])
+        self.exec_cmd("B6", ["01"], has_response=False)
 
     def read_data_buffer(self, bytes_to_read):
         buffer = bytearray()  # Create a buffer to store the incoming data
