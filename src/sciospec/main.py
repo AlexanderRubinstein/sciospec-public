@@ -20,10 +20,19 @@ ACK_DICT = {
 }
 
 
+# tags
+SET_SETUP_TAG = "B6"
+
+
 RESPONSE_LENGTH_DICT = {
     "Ack": 4,
     "D1": 7,
     # "B6": ??,
+}
+
+
+HARDCODED_LENS = {
+    SET_SETUP_TAG: 16
 }
 
 
@@ -59,12 +68,16 @@ def decode_bytes(data):
     return res
 
 
-def make_cmd(cmd_tag, data_bytes):
+def make_cmd(cmd_tag, data_bytes, hardcoded_len=None):
+    if hardcoded_len is not None:
+        data_len = hardcoded_len
+    else:
+        data_len = len(data_bytes)
     cmd_tag_byte = to_byte(cmd_tag)
     return bytes(
             [
                 cmd_tag_byte,
-                to_byte(str(len(data_bytes)))
+                to_byte(str(data_len))
             ]
         +
             [to_byte(byte) for byte in data_bytes]
@@ -159,14 +172,20 @@ class Device:
             raise Exception("Command has not been executed")
         # assert ack_id == "83", "Command has not been executed"
 
-    def exec_cmd(self, cmd_tag, data_bytes, has_response=True):
+    def exec_cmd(
+        self,
+        cmd_tag,
+        data_bytes,
+        has_response=True,
+        hardcoded_len=None
+    ):
         # data_bytes = ["00"]
         # ??
         # 0xD1 0x00 0x00 0xD1
         # D1 00 D1
         # Command to send, as a byte array (example: [0x01, 0x02, 0x03])
         # cmd = bytes([tag_byte, 0x00, tag_byte]) ??
-        cmd = make_cmd(cmd_tag, data_bytes)
+        cmd = make_cmd(cmd_tag, data_bytes, hardcoded_len=hardcoded_len)
         # cmd = bytearray([tag_byte, 0x00, tag_byte])
         # self.read_ack()
 
@@ -227,7 +246,7 @@ class Device:
         and an empty setup is initialized.
         '''
 
-        self.exec_cmd("B6", ["01"], has_response=False)
+        self.exec_cmd(SET_SETUP_TAG, ["01"], has_response=False)
 
     def set_setup(self, config):
 
@@ -311,7 +330,12 @@ class Device:
                 +
                     float_as_bytes(amplitude)
             )
-            self.exec_cmd("B6", data_bytes, has_response=False)
+            self.exec_cmd(
+                SET_SETUP_TAG,
+                data_bytes,
+                has_response=False,
+                hardcoded_len=HARDCODED_LENS[SET_SETUP_TAG]
+            )
 
         print(
             f"Setting up the device with the following configuration:"
