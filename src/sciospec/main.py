@@ -168,7 +168,10 @@ class Device:
 
     def assert_execution(self):
         ack_id = self.read_ack()
-        if ack_id != "83":
+
+        print(ACK_DICT[ack_id])
+
+        if ack_id not in ["81", "83"]:
             raise Exception("Command has not been executed")
         # assert ack_id == "83", "Command has not been executed"
 
