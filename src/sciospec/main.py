@@ -428,10 +428,12 @@ class Device:
 
 def main():
     device = Device()
-    device_id = device.get_device_id()
-    print("Device ID: ", device_id)
+    # device_id = device.get_device_id()
+    # print("Device ID: ", device_id)
+
     # device_firmware_id = device.get_firmware_id()
     # print("Firmware ID: ", device_firmware_id)
+
     device.reset_setup()
     device.set_setup(DUMMY_CONFIG)
     device.set_frontend_settings(DUMMY_CONFIG)
