@@ -21,6 +21,7 @@ ACK_DICT = {
 
 
 # tags
+SET_FE_TAG = "B0"
 SET_SETUP_TAG = "B6"
 
 
@@ -324,8 +325,21 @@ class Device:
 
         freq_list_params, amplitude, precision = parse_setup_config(config)
 
-        if freq_list_params is not None:
-            set_freq_list(freq_list_params, precision, amplitude)
+        # if freq_list_params is not None:
+        set_freq_list(freq_list_params, precision, amplitude)
+
+    def set_frontend_settings(self, config):
+
+        def clear_channel():
+            self.exec_cmd(
+                SET_FE_TAG,
+                ["255", "255", "255", "0"],
+                has_response=False,
+                hardcoded_len=3
+            )
+        self.clear_channel()
+        # self.set_channel()
+
 
     def read_data_buffer(self, bytes_to_read):
         buffer = bytearray()  # Create a buffer to store the incoming data
@@ -420,6 +434,7 @@ def main():
     # print("Firmware ID: ", device_firmware_id)
     device.reset_setup()
     device.set_setup(DUMMY_CONFIG)
+    device.set_frontend_settings(DUMMY_CONFIG)
 
 
 if __name__ == "__main__":
