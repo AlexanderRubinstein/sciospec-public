@@ -211,33 +211,6 @@ class Device:
         self.assert_execution()
         return response
 
-
-    def get_device_id(self):
-        # cmd_tag = "D1"
-        # # tag_byte = to_byte(cmd_tag)
-        # data_bytes = ["00"]
-        # # ??
-        # # 0xD1 0x00 0x00 0xD1
-        # # D1 00 D1
-        # # Command to send, as a byte array (example: [0x01, 0x02, 0x03])
-        # # cmd = bytes([tag_byte, 0x00, tag_byte]) ??
-        # cmd = make_cmd(cmd_tag, data_bytes)
-        # # cmd = bytearray([tag_byte, 0x00, tag_byte])
-        # # self.read_ack()
-
-        # # Write the data to the device
-        # self.write_data_to_device(cmd)
-        # # get ack
-        # self.assert_execution()
-        # # ack = self.read_ack()
-        # # assert ack
-        # # get response
-        # device_id = decode_bytes(
-        #     self.read_data_buffer(RESPONSE_LENGTH_DICT[cmd_tag])
-        # )
-        # return device_id
-        return self.exec_cmd("D1", [])
-
     def get_firmware_id(self):
         return self.exec_cmd("D2", ["00"])
 
@@ -245,7 +218,7 @@ class Device:
 
     def get_device_id(self):
 
-        self.exec_cmd("D1", ["00"])
+        self.exec_cmd("D1", [])
 
     def reset_setup(self):
         '''
