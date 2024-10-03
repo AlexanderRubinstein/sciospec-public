@@ -32,7 +32,7 @@ RESPONSE_LENGTH_DICT = {
 
 
 HARDCODED_LENS = {
-    SET_SETUP_TAG: 16
+    SET_SETUP_TAG: 16 # they require 16 in manual, even though there are at least 21 bytes by default: 5 floats + 1 bool
 }
 
 
@@ -192,7 +192,6 @@ class Device:
         # Write the data to the device
         self.write_data_to_device(cmd)
         # get ack
-        self.assert_execution()
         # ack = self.read_ack()
         # assert ack
         # get response
@@ -202,6 +201,8 @@ class Device:
             )
         else:
             response = None
+
+        self.assert_execution()
         return response
 
 
@@ -434,8 +435,8 @@ class Device:
 
 def main():
     device = Device()
-    # device_id = device.get_device_id()
-    # print("Device ID: ", device_id)
+    device_id = device.get_device_id()
+    print("Device ID: ", device_id)
     # device_firmware_id = device.get_firmware_id()
     # print("Firmware ID: ", device_firmware_id)
     device.reset_setup()
