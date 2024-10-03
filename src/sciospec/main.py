@@ -1,11 +1,12 @@
 import serial
 # pip install pyserial
 import sys
+import struct
+from deepdiff import DeepDiff, model as dd_model
+import json
 
 
-# def get_com_number():
-#     return 5 # TODO: Implement logic to get COM number
-
+DEFAULT_INDENT_IN_JSON = 2
 
 ACK_DICT = {
     "01": "Frame-Not-Acknowledge: Incorrect syntax",
@@ -23,6 +24,26 @@ RESPONSE_LENGTH_DICT = {
     "Ack": 4,
     "D1": 7,
     # "B6": ??,
+}
+
+
+# config consts
+FREQ_LIST_KEY = "freq_list_params"
+AMPLITUDE_KEY = "amplitude"
+PRECISION_KEY = "precision"
+START_FREQ_KEY = "start_freq"
+END_FREQ_KEY = "end_freq"
+FREQ_COUNT_KEY = "freq_count"
+FREQ_SCALE_KEY = "freq_scale"
+DUMMY_CONFIG = {
+    FREQ_LIST_KEY: {
+        "start_freq": 100,
+        "end_freq": 1000,
+        "freq_count": 80,
+        "freq_scale": 1 # Log
+    },
+    PRECISION_KEY: 1,
+    AMPLITUDE_KEY: 0.1, # V
 }
 
 def to_byte(hex_str):
@@ -50,6 +71,49 @@ def make_cmd(cmd_tag, data_bytes):
         +
             [cmd_tag_byte]
     )
+
+
+def float_as_4_bytes(float_val):
+    packed_value = struct.pack('>f', float_val)  # '>f' is for big-endian float
+    return packed_value
+
+
+def get_with_assert(container, key, error_msg=None):
+
+    if isinstance(key, list):
+        assert len(key) > 0
+        next_key = key[0]
+        rest_key = key[1:]
+        next_container = get_with_assert(container, next_key, error_msg)
+        if len(rest_key) == 0:
+            return next_container
+        else:
+            return get_with_assert(next_container, rest_key, error_msg)
+    else:
+        if error_msg is None:
+            error_msg = f"Key \"{key}\" not in container: {container}"
+        assert key in container, error_msg
+        return container[key]
+
+
+# from: https://stackoverflow.com/questions/8230315/how-to-json-serialize-sets
+class SetEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, (set, dd_model.PrettyOrderedSet)):
+            return list(obj)
+        return json.JSONEncoder.default(self, obj)
+
+
+# from: https://www.tensorflow.org/tensorboard/text_summaries
+def pretty_json(hp, cls=SetEncoder, default=str):
+
+    json_hp = json.dumps(
+        hp,
+        indent=DEFAULT_INDENT_IN_JSON,
+        cls=cls,
+        default=default
+    )
+    return "".join("\t" + line for line in json_hp.splitlines(True))
 
 
 class Device:
@@ -161,6 +225,95 @@ class Device:
 
         self.exec_cmd("B6", ["01"], has_response=False)
 
+    def set_setup(self, config):
+
+        def parse_setup_config(setup_config):
+            freq_list_params = get_with_assert(
+                config,
+                [FREQ_LIST_KEY],
+                cfg_not_found(FREQ_LIST_KEY, config)
+            )
+
+            amplitude = get_with_assert(
+                config,
+                [AMPLITUDE_KEY],
+                cfg_not_found(AMPLITUDE_KEY, config)
+            )
+
+            precision = get_with_assert(
+                config,
+                [PRECISION_KEY],
+                cfg_not_found(PRECISION_KEY, config)
+            )
+
+            return freq_list_params, amplitude, precision
+
+        def cfg_not_found(cfg_key, config):
+            return (
+                f"Key \"{cfg_key}\" not found in "
+                f"the given config:\n{pretty_json(config)}"
+            )
+
+        def set_freq_list(
+            freq_list_params,
+            precision,
+            amplitude
+        ):
+
+            def parse_freq_list(freq_list_params):
+
+                start_freq = get_with_assert(
+                    freq_list_params,
+                    [START_FREQ_KEY],
+                    cfg_not_found(START_FREQ_KEY, freq_list_params)
+                )
+
+                end_freq = get_with_assert(
+                    freq_list_params,
+                    [END_FREQ_KEY],
+                    cfg_not_found(END_FREQ_KEY, freq_list_params)
+                )
+
+                freq_count = get_with_assert(
+                    freq_list_params,
+                    [FREQ_COUNT_KEY],
+                    cfg_not_found(FREQ_COUNT_KEY, freq_list_params)
+                )
+
+                freq_scale = get_with_assert(
+                    freq_list_params,
+                    [FREQ_SCALE_KEY],
+                    cfg_not_found(FREQ_SCALE_KEY, freq_list_params)
+                )
+
+                return start_freq, end_freq, freq_count, freq_scale
+
+            start_freq, stop_freq, count, scale = parse_freq_list(freq_list_params)
+
+            data_bytes = (
+                    ["03"]
+                +
+                    float_as_4_bytes(start_freq)
+                +
+                    float_as_4_bytes(stop_freq)
+                +
+                    float_as_4_bytes(count)
+                # +
+                #     float_as_4_bytes(scale)
+                +
+                    [str(scale)]
+                +
+                    float_as_4_bytes(precision)
+                +
+                    float_as_4_bytes(amplitude)
+            )
+            self.exec_cmd("B6", data_bytes, has_response=False)
+
+        freq_list_params, amplitude, precision = parse_setup_config(config)
+
+        if freq_list_params is not None:
+            set_freq_list(freq_list_params, precision, amplitude)
+
     def read_data_buffer(self, bytes_to_read):
         buffer = bytearray()  # Create a buffer to store the incoming data
 
@@ -253,6 +406,7 @@ def main():
     # device_firmware_id = device.get_firmware_id()
     # print("Firmware ID: ", device_firmware_id)
     device.reset_setup()
+    device.set_setup(DUMMY_CONFIG)
 
 
 if __name__ == "__main__":
@@ -260,3 +414,5 @@ if __name__ == "__main__":
 
 #get device id
 # get ack
+
+
