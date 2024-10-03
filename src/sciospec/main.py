@@ -72,7 +72,7 @@ def make_cmd(cmd_tag, data_bytes, hardcoded_len=None):
     if hardcoded_len is not None:
         data_len = hardcoded_len
     else:
-        data_len = len(data_bytes)
+        data_len = len(data_bytes) - 1 # without the first technical byte
     cmd_tag_byte = to_byte(cmd_tag)
     return bytes(
             [
@@ -169,10 +169,10 @@ class Device:
     def assert_execution(self):
         ack_id = self.read_ack()
 
-        print(ACK_DICT[ack_id])
+        ack = ACK_DICT[ack_id]
 
         if ack_id not in ["81", "83"]:
-            raise Exception("Command has not been executed")
+            raise Exception(f"Command has not been executed, reason: {ack}")
         # assert ack_id == "83", "Command has not been executed"
 
     def exec_cmd(
