@@ -458,7 +458,8 @@ class Device:
         def clear_channel():
             self.exec_cmd(
                 SET_FE_TAG,
-                ["03", "FF", "FF", "FF"],
+                # ["03", "FF", "FF", "FF"],
+                ["FF", "FF", "FF"],
                 # hardcoded_len=3
             )
 
