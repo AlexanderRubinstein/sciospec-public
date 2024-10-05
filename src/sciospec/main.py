@@ -57,18 +57,33 @@ DUMMY_CONFIG = {
             "start_freq": 100,
             "end_freq": 1000,
             "freq_count": 80,
-            "freq_scale": "Log" # Log
+            "freq_scale": "Lin"
         },
-        PRECISION_KEY: 1,
-        AMPLITUDE_KEY: 0.1, # V
+        PRECISION_KEY: "medium",
+        AMPLITUDE_KEY: 0.25, # V
     },
     FE_KEY:
         {
-            MES_MODE_KEY: "4PT",
+            MES_MODE_KEY: "2PT",
             MES_CHNL_KEY: "BNC",
             CURR_RANGE_KEY: "auto",
-            VOL_RANGE_KEY: None
+            VOL_RANGE_KEY: "1"
         }
+}
+
+
+PRECISION_DICT = {
+    "low": "00",
+    "medium": "01",
+    "high": "02",
+    "very_high": "03"
+}
+
+
+# TODO(Alex | 05.10.2024): add option for excitation type
+EXCITATION_DICT = {
+    "voltage": "01",
+    "current": "02"
 }
 
 
@@ -326,12 +341,17 @@ class Device:
                 cfg_not_found(AMPLITUDE_KEY, config)
             )
 
-            precision = get_with_assert(
+            precision_kw = get_with_assert(
                 config,
                 [PRECISION_KEY],
                 cfg_not_found(PRECISION_KEY, config)
             )
 
+            precision = get_with_assert(
+                PRECISION_DICT,
+                precision_kw,
+                cfg_not_found(precision_kw, PRECISION_DICT)
+            )
 
             return freq_list_params, amplitude, precision
 
