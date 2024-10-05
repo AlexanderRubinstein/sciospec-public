@@ -183,6 +183,14 @@ def float_as_byte_list(float_val):
     # return bytes_as_list
 
 
+def read_ui_from_byte_list(byte_list):
+    bytes = bytes(byte_list)
+    n, r = divmod(len(bytes), struct.calcsize('I'))
+    assert r == 0, "Data length not a multiple of int size"
+    unsigned_data = struct.unpack('I' * n, bytes)[0]
+    return unsigned_data
+
+
 def read_float_from_byte_list(byte_list):
     return struct.unpack('>f', bytes(byte_list))[0]
 
@@ -567,15 +575,21 @@ class Device:
 
         def parse_result_frame(frame):
 
+            # [CT] 0B [ID] [Current Range] [Real part] [Imaginary part] [CT]
+
             # TODO(Alex | 03.10.2024): check correctness in practice, because manual and example contradict to each other
             assert len(frame) == RESULT_FRAME_SIZE
-            ch = frame[2]
-            id_ = (frame[3] << 8) + frame[4]
+            frame_type = frame[1]
+            # ch = frame[2]
+            # id_ = (frame[3] << 8) + frame[4]
+            id_ = read_ui_from_byte_list(frame[2:4])
+
+            cur_range = read_ui_from_byte_list([frame[5]])
 
             # TODO(Alex | 03.10.2024): avoid double conversions from bytes to string and back
             re = read_float_from_byte_list(frame[5:9])
             im = read_float_from_byte_list(frame[9:13])
-            return ch, id_, re, im
+            return cur_range, id_, re, im
 
         # self.freq_count = 3 # comment when testing on real device
         assert self.freq_count is not None, \
