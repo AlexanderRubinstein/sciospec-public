@@ -329,22 +329,29 @@ class Device:
     def set_setup(self, config):
 
         def parse_setup_config(setup_config):
+
+            # setup_config = get_with_assert(
+            #     config,
+            #     [SETUP_KEY],
+            #     cfg_not_found(SETUP_KEY, config)
+            # )
+
             freq_list_params = get_with_assert(
-                config,
+                setup_config,
                 [FREQ_LIST_KEY],
-                cfg_not_found(FREQ_LIST_KEY, config)
+                cfg_not_found(FREQ_LIST_KEY, setup_config)
             )
 
             amplitude = get_with_assert(
-                config,
+                setup_config,
                 [AMPLITUDE_KEY],
-                cfg_not_found(AMPLITUDE_KEY, config)
+                cfg_not_found(AMPLITUDE_KEY, setup_config)
             )
 
             precision_kw = get_with_assert(
-                config,
+                setup_config,
                 [PRECISION_KEY],
-                cfg_not_found(PRECISION_KEY, config)
+                cfg_not_found(PRECISION_KEY, setup_config)
             )
 
             precision = get_with_assert(
