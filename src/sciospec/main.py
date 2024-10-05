@@ -314,7 +314,8 @@ class Device:
         cmd_tag,
         data_bytes,
         has_response=False,
-        hardcoded_len=None
+        hardcoded_len=None,
+        get_response_func=None
     ):
         # data_bytes = ["00"]
         # 0xD1 0x00 0x00 0xD1
@@ -332,10 +333,14 @@ class Device:
         # assert ack
         # get response
         if has_response:
-            response = decode_bytes(
-                self.read_data_buffer(RESPONSE_LENGTH_DICT[cmd_tag])
-            )
+            if get_response_func is None:
+                response = decode_bytes(
+                    self.read_data_buffer(RESPONSE_LENGTH_DICT[cmd_tag])
+                )
+            else:
+                response = get_response_func()
         else:
+            assert get_response_func is None
             response = None
 
         self.assert_execution()
@@ -686,22 +691,30 @@ class Device:
                     for i in range(0, len(bytes_list), group_by)
             ]
 
+        def get_freq_list_response():
+            # TODO(Alex | 05.10.2024): avoid unneeded decoding from bytes to string and back
+            first_two_bytes = self.read_data_buffer(2)
+            assert decode_bytes(first_two_bytes)[0] == GET_SETUP_TAG
+            length = read_uchar_from_byte_list([first_two_bytes[1]])
+            rest_bytes = self.read_data_buffer(length + 1)
+
+            decoded_rest_bytes = decode_bytes(rest_bytes)
+            assert decoded_rest_bytes[-1] == GET_SETUP_TAG
+            freq_list = parse_bytes_list(
+                decoded_rest_bytes,
+                group_by=4,
+                parse_func=read_float_from_byte_list
+            )
+
         # [CT] 01 04 [CT]
-        self.exec_cmd(GET_SETUP_TAG, ["04"])
-
-        # TODO(Alex | 05.10.2024): avoid unneeded decoding from bytes to string and back
-        first_two_bytes = self.read_data_buffer(2)
-        assert decode_bytes(first_two_bytes)[0] == GET_SETUP_TAG
-        length = read_uchar_from_byte_list([first_two_bytes[1]])
-        rest_bytes = self.read_data_buffer(length + 1)
-
-        decoded_rest_bytes = decode_bytes(rest_bytes)
-        assert decoded_rest_bytes[-1] == GET_SETUP_TAG
-        freq_list = parse_bytes_list(
-            decoded_rest_bytes,
-            group_by=4,
-            parse_func=read_float_from_byte_list
+        freq_list = self.exec_cmd(
+            GET_SETUP_TAG,
+            ["04"],
+            has_response=True,
+            get_response_func=get_freq_list_response
         )
+
+
         return freq_list
         # decoded_buffer = decode_bytes(read_buffer)
         # assert
