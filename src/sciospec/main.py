@@ -8,6 +8,7 @@ import json
 
 
 DEFAULT_INDENT_IN_JSON = 2
+MAX_COUNT_IN_ONE_FRAME = 62
 
 ACK_DICT = {
     "01": "Frame-Not-Acknowledge: Incorrect syntax",
@@ -24,6 +25,7 @@ ACK_DICT = {
 # tags
 SET_FE_TAG = "B0"
 SET_SETUP_TAG = "B6"
+GET_SETUP_TAG = "B7"
 
 
 RESPONSE_LENGTH_DICT = {
@@ -148,6 +150,10 @@ def to_byte(hex_str):
     return byte_value
 
 
+def bytes_list_to_bytes(bytes_list):
+    return [to_byte(byte) for byte in bytes_list]
+
+
 def decode_bytes(data):
     res = []
     for byte in data:
@@ -183,16 +189,30 @@ def float_as_byte_list(float_val):
     # return bytes_as_list
 
 
-def read_ui_from_byte_list(byte_list):
-    bytes = bytes(byte_list)
-    n, r = divmod(len(bytes), struct.calcsize('I'))
-    assert r == 0, "Data length not a multiple of int size"
-    unsigned_data = struct.unpack('I' * n, bytes)[0]
-    return unsigned_data
+# def read_ui_from_byte_list(byte_list):
+#     as_bytes = bytes(byte_list)
+#     n, r = divmod(len(as_bytes), struct.calcsize('I'))
+#     assert r == 0, "Data length not a multiple of int size"
+#     unsigned_data = struct.unpack('I' * n, as_bytes)[0]
+#     return unsigned_data
+
+
+def read_from_byte_list(byte_list, fmt):
+    as_bytes = bytes(byte_list)
+    return struct.unpack(fmt, as_bytes)[0]
+
+
+def read_uchar_from_byte_list(byte_list):
+    return read_from_byte_list(byte_list, 'B')
+
+
+def read_ushort_from_byte_list(byte_list):
+    return read_from_byte_list(byte_list, 'H')
 
 
 def read_float_from_byte_list(byte_list):
-    return struct.unpack('>f', bytes(byte_list))[0]
+    # return struct.unpack('>f', bytes(byte_list))[0]
+    return read_from_byte_list(byte_list, '>f')
 
 
 def cfg_not_found(cfg_key, config):
@@ -419,6 +439,9 @@ class Device:
 
             start_freq, stop_freq, count, scale = parse_freq_list(freq_list_params)
 
+            assert count < MAX_COUNT_IN_ONE_FRAME, \
+                f"Frequency count must be less than {MAX_COUNT_IN_ONE_FRAME}, " \
+                f"but it is {count}"
             self.freq_count = count
 
             data_bytes = (
@@ -576,15 +599,21 @@ class Device:
         def parse_result_frame(frame):
 
             # [CT] 0B [ID] [Current Range] [Real part] [Imaginary part] [CT]
+            frame = bytes_list_to_bytes(frame)
+            # ['B8',  'B8']
+            # '0B', '00', '00', '01', '49', '44', '06', '7C', 'C6', '24', '98', '41',
+            # [184, 11, 0, 0, 1, 73, 68, 6, 124, 198, 36, 152, 65, 184]
 
             # TODO(Alex | 03.10.2024): check correctness in practice, because manual and example contradict to each other
             assert len(frame) == RESULT_FRAME_SIZE
             frame_type = frame[1]
             # ch = frame[2]
             # id_ = (frame[3] << 8) + frame[4]
-            id_ = read_ui_from_byte_list(frame[2:4])
+            # id_ = read_ui_from_byte_list(frame[2:4])
+            id_ = read_ushort_from_byte_list(frame[2:4])
 
-            cur_range = read_ui_from_byte_list([frame[5]])
+            # cur_range = read_ui_from_byte_list([frame[5]])
+            cur_range = read_uchar_from_byte_list([frame[5]])
 
             # TODO(Alex | 03.10.2024): avoid double conversions from bytes to string and back
             re = read_float_from_byte_list(frame[5:9])
@@ -630,8 +659,11 @@ class Device:
     # TODO(Alex | 03.10.2024): test function below
     def run_measurement(self):
         self.start_measurement() # uncomment when testing on real device
-        result = self.read_measurement_result()
-        self.stop_measurement() # uncomment when testing on real device
+        try:
+            result = self.read_measurement_result()
+        # result = self.read_measurement_result()
+        finally:
+            self.stop_measurement() # uncomment when testing on real device
         return result
 
     def read_data_buffer(self, bytes_to_read):
@@ -644,6 +676,36 @@ class Device:
                 buffer.append(ord(ch))
 
         return buffer
+
+    # TODO(Alex | 05.10.2024): test function below
+    def get_freq_list(self):
+
+        def parse_bytes_list(bytes_list, group_by, parse_func):
+            return [
+                parse_func[i:i + group_by]
+                    for i in range(0, len(bytes_list), group_by)
+            ]
+
+        # [CT] 01 04 [CT]
+        self.exec_cmd(GET_SETUP_TAG, ["04"])
+
+        # TODO(Alex | 05.10.2024): avoid unneeded decoding from bytes to string and back
+        first_two_bytes = self.read_data_buffer(2)
+        assert decode_bytes(first_two_bytes)[0] == GET_SETUP_TAG
+        length = read_uchar_from_byte_list([first_two_bytes[1]])
+        rest_bytes = self.read_data_buffer(length + 1)
+
+        decoded_rest_bytes = decode_bytes(rest_bytes)
+        assert decoded_rest_bytes[-1] == GET_SETUP_TAG
+        freq_list = parse_bytes_list(
+            decoded_rest_bytes,
+            group_by=4,
+            parse_func=read_float_from_byte_list
+        )
+        return freq_list
+        # decoded_buffer = decode_bytes(read_buffer)
+        # assert
+
 
     def write_data_to_device(self, cmd):
         # Print the command bytes in hexadecimal format
@@ -731,16 +793,44 @@ def main():
     # TODO(Alex | 03.10.2024): read config from given yaml path
     device.set_setup(DUMMY_CONFIG)
     device.set_frontend_settings(DUMMY_CONFIG) # uncomment when testing on real device
+    freq_list = device.get_freq_list()
+    print("Freq list: ", freq_list)
     result = device.run_measurement()
+
     # TODO(Alex | 03.10.2024): save result in output csv specified in args
+    pass # saving code
+
+    # debug_result_frame = ['B8', '0B', '00', '00', '01', '49', '44', '06', '7C', 'C6', '24', '98', '41', 'B8']
+    # result = parse_result_frame(debug_result_frame)
     print("Result: ", result)
     device.close()
 
 
+# def parse_result_frame(frame):
+
+#     # [CT] 0B [ID] [Current Range] [Real part] [Imaginary part] [CT]
+#     frame = bytes_list_to_bytes(frame)
+#     # ['B8',  'B8']
+#     # '0B', '00', '00', '01', '49', '44', '06', '7C', 'C6', '24', '98', '41',
+#     # [184, 11, 0, 0, 1, 73, 68, 6, 124, 198, 36, 152, 65, 184]
+
+#     # TODO(Alex | 03.10.2024): check correctness in practice, because manual and example contradict to each other
+#     assert len(frame) == RESULT_FRAME_SIZE
+#     frame_type = frame[1]
+#     # ch = frame[2]
+#     # id_ = (frame[3] << 8) + frame[4]
+#     # id_ = read_ui_from_byte_list(frame[2:4])
+#     id_ = read_ushort_from_byte_list(frame[2:4])
+
+#     # cur_range = read_ui_from_byte_list([frame[5]])
+#     cur_range = read_uchar_from_byte_list([frame[5]])
+
+#     # TODO(Alex | 03.10.2024): avoid double conversions from bytes to string and back
+#     re = read_float_from_byte_list(frame[5:9])
+#     im = read_float_from_byte_list(frame[9:13])
+#     return cur_range, id_, re, im
+
+
+
 if __name__ == "__main__":
     main()
-
-#get device id
-# get ack
-
-
