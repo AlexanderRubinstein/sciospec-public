@@ -3,6 +3,7 @@ import serial
 import sys
 import struct
 from deepdiff import DeepDiff, model as dd_model
+# pip install deepdiff
 import json
 
 
@@ -160,7 +161,7 @@ def make_cmd(cmd_tag, data_bytes, hardcoded_len=None):
     else:
         data_len = len(data_bytes)
     cmd_tag_byte = to_byte(cmd_tag)
-    return bytes(
+    all_bytes = (
             [
                 cmd_tag_byte,
                 to_byte(str(data_len))
@@ -170,6 +171,7 @@ def make_cmd(cmd_tag, data_bytes, hardcoded_len=None):
         +
             [cmd_tag_byte]
     )
+    return bytes(all_bytes)
 
 
 def float_as_byte_list(float_val):
@@ -233,7 +235,7 @@ def pretty_json(hp, cls=SetEncoder, default=str):
 class Device:
 
     def __init__(self):
-        self.connection = self._get_connection()
+        self.connection = self._get_connection() # uncomment when testing on real device
         self.freq_count = None
 
     def close(self):
@@ -447,9 +449,8 @@ class Device:
 
         freq_list_params, amplitude, precision = parse_setup_config(setup_config)
 
-        # if freq_list_params is not None:
-        self.reset_setup()
-        set_freq_list(freq_list_params, precision, amplitude)
+        self.reset_setup() # uncomment when testing on real device
+        set_freq_list(freq_list_params, precision, amplitude) # uncomment when testing on real device
 
     # TODO(Alex | 03.10.2024): test function below
     def set_frontend_settings(self, config):
@@ -457,34 +458,54 @@ class Device:
         def clear_channel():
             self.exec_cmd(
                 SET_FE_TAG,
-                ["03", "255", "255", "255"],
+                ["03", "FF", "FF", "FF"],
                 # hardcoded_len=3
             )
 
         def parse_frontend_config(fe_settings):
-            mes_mode = get_with_assert(
+            mes_mode_kw = get_with_assert(
                 fe_settings,
                 [MES_MODE_KEY],
                 cfg_not_found(MES_MODE_KEY, fe_settings)
             )
-            mes_chl = get_with_assert(
+            mes_mode = get_with_assert(
+                MEASUREMENT_MODE_DICT,
+                mes_mode_kw,
+                cfg_not_found(mes_mode_kw, MEASUREMENT_MODE_DICT)
+            )
+            mes_chl_kw = get_with_assert(
                 fe_settings,
                 [MES_CHNL_KEY],
                 cfg_not_found(MES_CHNL_KEY, fe_settings)
             )
-            curr_range = get_with_assert(
+            mes_chl = get_with_assert(
+                MEASUREMENT_CHANNEL_DICT,
+                mes_chl_kw,
+                cfg_not_found(mes_chl_kw, MEASUREMENT_CHANNEL_DICT)
+            )
+            curr_range_kw = get_with_assert(
                 fe_settings,
                 [CURR_RANGE_KEY],
                 cfg_not_found(CURR_RANGE_KEY, fe_settings)
             )
-            vol_range = get_with_assert(
+            curr_range = get_with_assert(
+                CURRENT_RANGE_SETTINGS_DICT,
+                curr_range_kw,
+                cfg_not_found(curr_range_kw, CURRENT_RANGE_SETTINGS_DICT)
+            )
+            vol_range_kw = get_with_assert(
                 fe_settings,
                 [VOL_RANGE_KEY],
                 cfg_not_found(VOL_RANGE_KEY, fe_settings)
             )
+            vol_range = get_with_assert(
+                VOLTAGE_RANGE_SETTINGS_DICT,
+                vol_range_kw,
+                cfg_not_found(vol_range_kw, VOLTAGE_RANGE_SETTINGS_DICT)
+            )
             return mes_mode, mes_chl, curr_range, vol_range
 
-        clear_channel()
+        clear_channel() # uncomment when testing on real device
 
         fe_settings = get_with_assert(
             config,
@@ -555,6 +576,7 @@ class Device:
             im = read_float_from_byte_list(frame[9:13])
             return ch, id_, re, im
 
+        # self.freq_count = 3 # comment when testing on real device
         assert self.freq_count is not None, \
             "Called read_measurement_result before set_setup"
 
@@ -592,9 +614,9 @@ class Device:
 
     # TODO(Alex | 03.10.2024): test function below
     def run_measurement(self):
-        self.start_measurement()
+        self.start_measurement() # uncomment when testing on real device
         result = self.read_measurement_result()
-        self.stop_measurement()
+        self.stop_measurement() # uncomment when testing on real device
         return result
 
     def read_data_buffer(self, bytes_to_read):
@@ -693,7 +715,7 @@ def main():
 
     # TODO(Alex | 03.10.2024): read config from given yaml path
     device.set_setup(DUMMY_CONFIG)
-    device.set_frontend_settings(DUMMY_CONFIG)
+    device.set_frontend_settings(DUMMY_CONFIG) # uncomment when testing on real device
     result = device.run_measurement()
     # TODO(Alex | 03.10.2024): save result in output csv specified in args
     print("Result: ", result)
