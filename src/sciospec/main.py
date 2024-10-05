@@ -73,10 +73,14 @@ DUMMY_CONFIG = {
 
 
 PRECISION_DICT = {
-    "low": "00",
-    "medium": "01",
-    "high": "02",
-    "very_high": "03"
+    # "low": "00",
+    # "medium": "01",
+    # "high": "02",
+    # "very_high": "03"
+    "low": 0,
+    "medium": 1,
+    "high": 2,
+    "very_high": 3
 }
 
 
