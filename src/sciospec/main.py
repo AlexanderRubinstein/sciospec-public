@@ -5,6 +5,7 @@ import struct
 from deepdiff import DeepDiff, model as dd_model
 # pip install deepdiff
 import json
+# TODO(Alex | 05.10.2024): add requirements.txt
 
 
 DEFAULT_INDENT_IN_JSON = 2
@@ -76,10 +77,6 @@ DUMMY_CONFIG = {
 
 
 PRECISION_DICT = {
-    # "low": "00",
-    # "medium": "01",
-    # "high": "02",
-    # "very_high": "03"
     "low": 0,
     "medium": 1,
     "high": 2,
@@ -93,20 +90,6 @@ EXCITATION_DICT = {
     "current": "02"
 }
 
-
-# writeDataToDevice(handle, cmd, numberOfBytes);
-#     readAck(handle);
-# printf("\n");
-# cmd[3] = 0x02;
-# cmd[4] = 0x01;
-# cmd[5] = 0x01;
-# writeDataToDevice(handle, cmd, numberOfBytes);
-# readAck(handle);
-# printf("\n");
-
-# $/ /$ mode $=4 \mathrm{Pt}$ measurement
-# //add channel: Channel 1 (BNC),
-# //1000hm Range,
 
 FREQ_SCALE_DICT = {
     "Lin": "00",
@@ -145,7 +128,6 @@ VOLTAGE_RANGE_SETTINGS_DICT = {
 
 
 def to_byte(hex_str):
-    # hex_str = "D1"
     byte_value = int(hex_str, 16)
     return byte_value
 
@@ -181,20 +163,8 @@ def make_cmd(cmd_tag, data_bytes, hardcoded_len=None):
 
 
 def float_as_byte_list(float_val):
-    # bytes_as_list = []
     packed_value = struct.pack('>f', float_val)  # '>f' is for big-endian float
-    # for byte in packed_value:
-    #     bytes_as_list.append(byte)
     return decode_bytes(packed_value)
-    # return bytes_as_list
-
-
-# def read_ui_from_byte_list(byte_list):
-#     as_bytes = bytes(byte_list)
-#     n, r = divmod(len(as_bytes), struct.calcsize('I'))
-#     assert r == 0, "Data length not a multiple of int size"
-#     unsigned_data = struct.unpack('I' * n, as_bytes)[0]
-#     return unsigned_data
 
 
 def read_from_byte_list(byte_list, fmt):
@@ -211,7 +181,6 @@ def read_ushort_from_byte_list(byte_list):
 
 
 def read_float_from_byte_list(byte_list):
-    # return struct.unpack('>f', bytes(byte_list))[0]
     return read_from_byte_list(byte_list, '>f')
 
 
@@ -275,10 +244,6 @@ class Device:
 
         # Print the ACK frame in hexadecimal format
         print("ACK-Frame: ", end="")
-        # for byte in read_buffer:
-        #     print(f"{byte:02X} ", end="")
-        # print()
-        # print(decode_bytes(read_buffer))
         decoded_buffer = decode_bytes(read_buffer)
         if len(read_buffer) == 0:
             print("No acknowledgement received")
@@ -291,12 +256,6 @@ class Device:
                 print(ACK_DICT[ack_id])
         return ack_id
 
-        # # Check if the third byte (index 2) is 0x83
-        # if ack_id == "83":
-        #     return True  # ACK
-        # else:
-        #     return False  # Not ACK
-
     def assert_execution(self):
         ack_id = self.read_ack()
 
@@ -307,7 +266,6 @@ class Device:
 
         if ack_id not in ["81", "83"]:
             raise Exception(f"Command has not been executed, reason: {ack}")
-        # assert ack_id == "83", "Command has not been executed"
 
     def exec_cmd(
         self,
@@ -317,21 +275,12 @@ class Device:
         hardcoded_len=None,
         get_response_func=None
     ):
-        # data_bytes = ["00"]
-        # 0xD1 0x00 0x00 0xD1
-        # D1 00 D1
-        # Command to send, as a byte array (example: [0x01, 0x02, 0x03])
-        # cmd = bytes([tag_byte, 0x00, tag_byte])
-        cmd = make_cmd(cmd_tag, data_bytes, hardcoded_len=hardcoded_len)
-        # cmd = bytearray([tag_byte, 0x00, tag_byte])
-        # self.read_ack()
 
-        # Write the data to the device
+        cmd = make_cmd(cmd_tag, data_bytes, hardcoded_len=hardcoded_len)
+
+        # Write data to the device
         self.write_data_to_device(cmd)
-        # get ack
-        # ack = self.read_ack()
-        # assert ack
-        # get response
+
         if has_response:
             if get_response_func is None:
                 response = decode_bytes(
@@ -350,8 +299,6 @@ class Device:
     def get_firmware_id(self):
         return self.exec_cmd("D2", ["00"], has_response=True)
 
-    # get freqeuncy list: Syntax get: [CT] 01 04 [CT] - response is split in 252 byte packages
-
     # TODO(Alex | 03.10.2024): make function below working
     def get_device_id(self):
 
@@ -368,12 +315,6 @@ class Device:
     def set_setup(self, config):
 
         def parse_setup_config(setup_config):
-
-            # setup_config = get_with_assert(
-            #     config,
-            #     [SETUP_KEY],
-            #     cfg_not_found(SETUP_KEY, config)
-            # )
 
             freq_list_params = get_with_assert(
                 setup_config,
@@ -457,8 +398,6 @@ class Device:
                     float_as_byte_list(stop_freq)
                 +
                     float_as_byte_list(count)
-                # +
-                #     float_as_byte_list(scale)
                 +
                     [str(scale)]
                 +
@@ -488,15 +427,13 @@ class Device:
         self.reset_setup() # uncomment when testing on real device
         set_freq_list(freq_list_params, precision, amplitude) # uncomment when testing on real device
 
-    # TODO(Alex | 03.10.2024): test function below
+
     def set_frontend_settings(self, config):
 
         def clear_channel():
             self.exec_cmd(
                 SET_FE_TAG,
-                # ["03", "FF", "FF", "FF"],
                 ["FF", "FF", "FF"],
-                # hardcoded_len=3
             )
 
         def parse_frontend_config(fe_settings):
@@ -557,26 +494,8 @@ class Device:
             self.exec_cmd(
                 SET_FE_TAG,
                 data_bytes,
-                # hardcoded_len=3
             )
-        # if vol_range is None:
-        #     self.exec_cmd(
-        #         SET_FE_TAG,
-        #         ["03", mes_mode, mes_chl, curr_range],
-        #         has_response=False,
-        #         # hardcoded_len=3
-        #     )
-        # else:
-        #     self.exec_cmd(
-        #         SET_FE_TAG,
-        #         ["04", mes_mode, mes_chl, curr_range, vol_range],
-        #         has_response=False,
-        #         # hardcoded_len=3
-        #     )
 
-        # self.set_channel()
-
-    # TODO(Alex | 03.10.2024): test function below
     def start_measurement(self):
         self.exec_cmd("B8", ["01", "00", "00"])
 
@@ -589,43 +508,40 @@ class Device:
         """
         Format of the measurement result frame:
 
-        If time stamp and current range are disabled (see command 0x97 and 0x98):
-            [CT] 0A [ID] [Real part] [Imaginary part] [CT]
-        Else if time stamp in ms is enabled (see command 0x97 and 0x98):
-            [CT] 0E [ID] [Time stamp] [Real part] [Imaginary part] [CT]
-        Else if time stamp in μs is enabled (see command 0x97 and 0x98)
-            [CT] 0F [ID] [Time stamp] [Real part] [Imaginary part] [CT]
-        Else if current range is enabled (see command 0x97 and 0x98)
-            [CT] 0B [ID] [Current Range] [Real part] [Imaginary part] [CT]
-        Else if time stamp and current range are enabled (see command 0x97 and 0x98)
-            [CT] 0F [ID] [Time stamp] [Current Range] [Real part] [Imaginary part] [CT]
+        [CT] [Result Type] [ID] [Current Range] [Real part] [Imaginary part] [CT]
+
+        Result Type:
+            If time stamp and current range are disabled (see command 0x97 and 0x98):
+                [CT] 0A [ID] [Real part] [Imaginary part] [CT]
+            Else if time stamp in ms is enabled (see command 0x97 and 0x98):
+                [CT] 0E [ID] [Time stamp] [Real part] [Imaginary part] [CT]
+            Else if time stamp in μs is enabled (see command 0x97 and 0x98)
+                [CT] 0F [ID] [Time stamp] [Real part] [Imaginary part] [CT]
+            Else if current range is enabled (see command 0x97 and 0x98)
+                [CT] 0B [ID] [Current Range] [Real part] [Imaginary part] [CT]
+            Else if time stamp and current range are enabled (see command 0x97 and 0x98)
+                [CT] 0F [ID] [Time stamp] [Current Range] [Real part] [Imaginary part] [CT]
         """
 
-        def parse_result_frame(frame):
+        def parse_result_frame(frame, verbose=False):
 
-            # [CT] 0B [ID] [Current Range] [Real part] [Imaginary part] [CT]
             frame = bytes_list_to_bytes(frame)
-            # ['B8',  'B8']
-            # '0B', '00', '00', '01', '49', '44', '06', '7C', 'C6', '24', '98', '41',
-            # [184, 11, 0, 0, 1, 73, 68, 6, 124, 198, 36, 152, 65, 184]
 
-            # TODO(Alex | 03.10.2024): check correctness in practice, because manual and example contradict to each other
+            # TODO(Alex | 03.10.2024): check correctness in practice, because manual and example contradict to each other: example does not include current range
             assert len(frame) == RESULT_FRAME_SIZE
-            frame_type = frame[1]
-            # ch = frame[2]
-            # id_ = (frame[3] << 8) + frame[4]
-            # id_ = read_ui_from_byte_list(frame[2:4])
+            result_type = frame[1]
             id_ = read_ushort_from_byte_list(frame[2:4])
 
-            # cur_range = read_ui_from_byte_list([frame[5]])
             cur_range = read_uchar_from_byte_list([frame[5]])
 
             # TODO(Alex | 03.10.2024): avoid double conversions from bytes to string and back
             re = read_float_from_byte_list(frame[5:9])
             im = read_float_from_byte_list(frame[9:13])
+            if verbose:
+                print("Result frame: id={}, Re={}, Im={}".format(id_, re, im))
             return cur_range, id_, re, im
 
-        # self.freq_count = 3 # comment when testing on real device
+
         assert self.freq_count is not None, \
             "Called read_measurement_result before set_setup"
 
@@ -634,39 +550,14 @@ class Device:
             print("cur_frame", cur_frame) # tmp
             parsed_frame = parse_result_frame(cur_frame)
             print(parsed_frame)
-        # assert RESULT_FRAME_SIZE * self.frec_count < MAX_BYTE_RESULT * 8
-        # readBuffer = malloc(14);
 
-# 4Byte Im
-# //3Byte Framing, 2Byte idNumber, 4Byte RE,
-# byte j;
-# byte i;
-# UINT8 ch;
-# UINT16 id;
-# UINT32 tmp32;
-# float re, im;
-# for(j=0; j<numberOfSpecs; j++){
-# printf("Spec#%i:\n", j+1); printf("ch\tid\tre\tim\n"); for(i=0; i<frequencyCount;i++){
-#             readData(handle, readBuffer, 14);
-#             ch = readBuffer[2];
-#             id = (readBuffer[3]<<8) + readBuffer[4];
-#             tmp32 = (readBuffer[5]<<24) + (readBuffer[6]<<16) +
-# (readBuffer[7]<<8) + (readBuffer[8]);
-#             re = *(float*)&tmp32;
-#             tmp32 = (readBuffer[9]<<24) + (readBuffer[10]<<16) +
-# (readBuffer[11]<<8) + (readBuffer[12]);
-#             im = *(float*)&tmp32;
-#             printf("%i\t%i\t%f\t%f\n", ch, id, re, im);
-# }
-#         printf("\n");
-#     }
 
     # TODO(Alex | 03.10.2024): test function below
     def run_measurement(self):
         self.start_measurement() # uncomment when testing on real device
         try:
             result = self.read_measurement_result()
-        # result = self.read_measurement_result()
+
         finally:
             self.stop_measurement() # uncomment when testing on real device
         return result
@@ -705,6 +596,7 @@ class Device:
                 group_by=4,
                 parse_func=read_float_from_byte_list
             )
+            return freq_list
 
         # [CT] 01 04 [CT]
         freq_list = self.exec_cmd(
@@ -714,19 +606,14 @@ class Device:
             get_response_func=get_freq_list_response
         )
 
-
         return freq_list
-        # decoded_buffer = decode_bytes(read_buffer)
-        # assert
 
 
-    def write_data_to_device(self, cmd):
-        # Print the command bytes in hexadecimal format
-        # for byte in cmd:
-        #     print(f"{byte:02X} ", end="")
-        # print()  # Newline after printing all bytes
-        print("Writing this cmd as bytes to device", cmd)
-        print("Its decoded version", decode_bytes(cmd))
+    def write_data_to_device(self, cmd, verbose=True):
+
+        if verbose:
+            print("Writing this cmd as bytes to device", cmd)
+            print("Its decoded version", decode_bytes(cmd))
 
         # Write the bytes to the serial port
         self.connection.write(cmd)
@@ -734,7 +621,7 @@ class Device:
     def _get_connection(self):
 
         def get_com_number():
-            return 5 # TODO: Implement logic to get COM number
+            return 5 # TODO(Alex | 03.10.2024): Implement logic to get COM number
 
         try:
             com_number = get_com_number()
@@ -745,104 +632,31 @@ class Device:
                 print("Serial port opened successfully")
             else:
                 print("Failed to open serial port")
-                # sys.exit(0)
 
         except serial.SerialException as e:
             print(f"Error: {e}")
             sys.exit(0)
-            # with open("\\\\.\\COM6", "r") as f:
         return ser
-
-
-# def get_device_id():
-#     # 0xD1 0x00 0x00 0xD1
-#     # D1 00 D1
-#     # Command to send, as a byte array (example: [0x01, 0x02, 0x03])
-#     cmd = bytes([0x01, 0x02, 0x03])
-
-#     # Write the data to the device
-#     write_data_to_device(ser, cmd)
-
-
-# def write_data_to_device(ser, cmd):
-#     # Print the command bytes in hexadecimal format
-#     for byte in cmd:
-#         print(f"{byte:02X} ", end="")
-#     print()  # Newline after printing all bytes
-
-#     # Write the bytes to the serial port
-#     ser.write(cmd)
-
-
-# def get_connection():
-#     try:
-#         com_number = get_com_number()
-#         # Open serial port
-#         ser = serial.Serial(f'COM{com_number}', baudrate=9600, timeout=1)
-
-#         if ser.is_open:
-#             print("Serial port opened successfully")
-#         else:
-#             print("Failed to open serial port")
-#             # sys.exit(0)
-
-#     except serial.SerialException as e:
-#         print(f"Error: {e}")
-#         sys.exit(0)
-#         # with open("\\\\.\\COM6", "r") as f:
-#     return ser
 
 
 def main():
     device = Device()
-    # device_id = device.get_device_id()
-    # print("Device ID: ", device_id)
-
-    # device_firmware_id = device.get_firmware_id()
-    # print("Firmware ID: ", device_firmware_id)
-
-    # device.reset_setup()
 
     # TODO(Alex | 03.10.2024): read config from given yaml path
     device.set_setup(DUMMY_CONFIG)
     device.set_frontend_settings(DUMMY_CONFIG) # uncomment when testing on real device
-    freq_list = device.get_freq_list()
-    print("Freq list: ", freq_list)
+
+    # TODO(Alex | 05.10.2024): get freq list as below
+    # freq_list = device.get_freq_list()
+    # print("Freq list: ", freq_list)
+
     result = device.run_measurement()
 
     # TODO(Alex | 03.10.2024): save result in output csv specified in args
-    pass # saving code
+    pass # add saving code
 
-    # debug_result_frame = ['B8', '0B', '00', '00', '01', '49', '44', '06', '7C', 'C6', '24', '98', '41', 'B8']
-    # result = parse_result_frame(debug_result_frame)
     print("Result: ", result)
     device.close()
-
-
-# def parse_result_frame(frame):
-
-#     # [CT] 0B [ID] [Current Range] [Real part] [Imaginary part] [CT]
-#     frame = bytes_list_to_bytes(frame)
-#     # ['B8',  'B8']
-#     # '0B', '00', '00', '01', '49', '44', '06', '7C', 'C6', '24', '98', '41',
-#     # [184, 11, 0, 0, 1, 73, 68, 6, 124, 198, 36, 152, 65, 184]
-
-#     # TODO(Alex | 03.10.2024): check correctness in practice, because manual and example contradict to each other
-#     assert len(frame) == RESULT_FRAME_SIZE
-#     frame_type = frame[1]
-#     # ch = frame[2]
-#     # id_ = (frame[3] << 8) + frame[4]
-#     # id_ = read_ui_from_byte_list(frame[2:4])
-#     id_ = read_ushort_from_byte_list(frame[2:4])
-
-#     # cur_range = read_ui_from_byte_list([frame[5]])
-#     cur_range = read_uchar_from_byte_list([frame[5]])
-
-#     # TODO(Alex | 03.10.2024): avoid double conversions from bytes to string and back
-#     re = read_float_from_byte_list(frame[5:9])
-#     im = read_float_from_byte_list(frame[9:13])
-#     return cur_range, id_, re, im
-
 
 
 if __name__ == "__main__":
