@@ -60,7 +60,7 @@ DUMMY_CONFIG = {
         FREQ_LIST_KEY: {
             "start_freq": 100,
             "end_freq": 1000,
-            "freq_count": 80,
+            "freq_count": 10,
             "freq_scale": "Lin"
         },
         PRECISION_KEY: "medium",
